@@ -1,0 +1,26 @@
+{
+  "_comentario": "Respostas pré-definidas para perguntas comuns em formulários de candidatura. O agente usará estas respostas como base, variando a forma de escrevê-las.",
+
+  "pretensao_salarial": "A combinar",
+  "disponibilidade_inicio": "Imediata",
+  "como_conheceu_empresa": "Encontrei a vaga durante minha busca ativa por oportunidades na área de desenvolvimento.",
+
+  "por_que_trabalhar_aqui": "Busco uma empresa onde eu possa contribuir com minha experiência em desenvolvimento e ao mesmo tempo continuar evoluindo tecnicamente. A proposta da vaga se alinha bem com meu perfil.",
+
+  "pontos_fortes": "Capacidade de aprender rápido, foco em entregar soluções que funcionem, e experiência prática com múltiplas tecnologias do ecossistema Java e React.",
+
+  "pontos_fracos": "Às vezes me aprofundo demais em detalhes técnicos antes de avançar. Tenho trabalhado para equilibrar qualidade com velocidade de entrega.",
+
+  "expectativa_carreira": "Quero me consolidar como desenvolvedor backend/full stack, aprofundando em arquitetura de sistemas e boas práticas de engenharia de software.",
+
+  "trabalho_em_equipe": "Na UAN Tecnologia trabalho em equipe diariamente, participando de code reviews, alinhamentos técnicos e colaborando na definição de soluções.",
+
+  "_todo_preencher": {
+    "_aviso": "Preencha os campos abaixo com suas informações reais:",
+    "possui_deficiencia": "Não",
+    "aceita_viagem": "Sim, para viagens esporádicas",
+    "possui_veiculo": "",
+    "estado_civil": "",
+    "data_nascimento": ""
+  }
+}

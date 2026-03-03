@@ -1,0 +1,48 @@
+{
+  "sites": [
+    {
+      "nome": "Gupy",
+      "urls_busca": [
+        "https://portal.gupy.io/job-search/term=desenvolvedor+backend&workplaceTypes[]=remote&workplaceTypes[]=hybrid",
+        "https://portal.gupy.io/job-search/term=desenvolvedor+full+stack&workplaceTypes[]=remote&workplaceTypes[]=hybrid",
+        "https://portal.gupy.io/job-search/term=desenvolvedor+java&workplaceTypes[]=remote&workplaceTypes[]=hybrid",
+        "https://portal.gupy.io/job-search/term=backend+developer&workplaceTypes[]=remote&workplaceTypes[]=hybrid"
+      ],
+      "tipo": "portal_vagas",
+      "instrucoes": "1. Buscar vagas listadas na pagina de resultados. 2. Clicar em cada vaga para ver detalhes. 3. Verificar se a vaga e relevante para o perfil (Backend Java, Full Stack, APIs REST, Spring Boot). 4. Clicar no botao 'Candidatar-se' ou 'Quero me candidatar'. 5. Preencher TODOS os campos do formulario com os dados do perfil. 6. Para campos abertos (ex: 'Por que quer trabalhar aqui?'), gerar resposta personalizada baseada na descricao da vaga. 7. Anexar curriculo quando solicitado. 8. Confirmar envio da candidatura. 9. Voltar para a lista e repetir com a proxima vaga.",
+      "ativo": true
+    },
+    {
+      "nome": "Vagas.com",
+      "urls_busca": [
+        "https://www.vagas.com.br/vagas-de-desenvolvedor-backend",
+        "https://www.vagas.com.br/vagas-de-desenvolvedor-full-stack",
+        "https://www.vagas.com.br/vagas-de-desenvolvedor-java",
+        "https://www.vagas.com.br/vagas-de-backend-developer"
+      ],
+      "tipo": "portal_vagas",
+      "instrucoes": "1. Na pagina de resultados, clicar em cada vaga para ver detalhes. 2. Verificar se a vaga e relevante para o perfil do candidato (Backend Java, Full Stack, APIs REST). 3. Clicar no botao 'Candidate-se' ou 'Enviar curriculo'. 4. Preencher formulario completo se solicitado. 5. Para campos abertos, gerar resposta personalizada. 6. Confirmar envio. 7. Voltar para a lista e repetir.",
+      "ativo": true
+    },
+    {
+      "nome": "LinkedIn",
+      "urls_busca": [
+        "https://www.linkedin.com/jobs/search/?keywords=desenvolvedor%20backend&location=Brasil&f_WT=2",
+        "https://www.linkedin.com/jobs/search/?keywords=full%20stack%20developer&location=Brasil&f_WT=2"
+      ],
+      "tipo": "linkedin",
+      "instrucoes": "Usar Easy Apply quando disponivel. Pular vagas sem Easy Apply. Preencher todos os campos obrigatorios.",
+      "ativo": false
+    },
+    {
+      "nome": "Indeed",
+      "urls_busca": [
+        "https://br.indeed.com/jobs?q=desenvolvedor+backend&l=remoto",
+        "https://br.indeed.com/jobs?q=desenvolvedor+full+stack&l=remoto"
+      ],
+      "tipo": "portal_vagas",
+      "instrucoes": "Buscar vagas com 'Candidatura simplificada'. Preencher formularios e anexar curriculo.",
+      "ativo": false
+    }
+  ]
+}

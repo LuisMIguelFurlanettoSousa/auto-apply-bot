@@ -1,0 +1,28 @@
+{
+  "fallback": {
+    "id": "original",
+    "arquivo": "./assets/curriculo.pdf",
+    "foco": "Curriculo original generico",
+    "usar_quando": "Quando nenhum outro curriculo se encaixar bem na vaga, ou quando a vaga for muito generica."
+  },
+  "curriculos": [
+    {
+      "id": "backend-java",
+      "arquivo": "./curriculos/backend-java/Curriculo.pdf",
+      "foco": "Backend Java",
+      "usar_quando": "Vaga menciona: backend, Java, APIs REST, microsservicos, servidor."
+    },
+    {
+      "id": "full-stack",
+      "arquivo": "./curriculos/full-stack/Curriculo.pdf",
+      "foco": "Full Stack balanceado",
+      "usar_quando": "Vaga menciona: full stack, backend + frontend, desenvolvimento completo."
+    },
+    {
+      "id": "mobile-react-native",
+      "arquivo": "./curriculos/mobile-react-native/Curriculo.pdf",
+      "foco": "Mobile React Native",
+      "usar_quando": "Vaga menciona: mobile, React Native, Expo, iOS, Android."
+    }
+  ]
+}

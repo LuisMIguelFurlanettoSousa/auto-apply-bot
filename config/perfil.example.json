@@ -1,0 +1,57 @@
+{
+  "nome": "Seu Nome Completo",
+  "email": "seu-email@gmail.com",
+  "telefone": "(00) 99999-9999",
+  "linkedin": "https://linkedin.com/in/seu-perfil",
+  "github": "https://github.com/seu-usuario",
+  "portfolio": "https://seu-portfolio.com",
+  "curriculo_path": "./assets/curriculo.pdf",
+  "titulo_profissional": "Desenvolvedor Full Stack",
+  "anos_experiencia": 2,
+  "stack_principal": [
+    "Java",
+    "TypeScript",
+    "React",
+    "Node.js",
+    "Docker"
+  ],
+  "resumo_profissional": "Descreva aqui seu resumo profissional em 2-3 linhas. Ex: Desenvolvedor com experiencia em Java e React, focado em performance e boas praticas.",
+  "pretensao_salarial": "A combinar",
+  "modelo_trabalho": [
+    "remoto",
+    "hibrido",
+    "presencial"
+  ],
+  "cidade": "Sua Cidade, UF",
+  "regra_localizacao": "Descreva sua regra de localizacao. Ex: Se a vaga for na minha cidade, aceitar qualquer modelo. Se for em outra cidade, aceitar somente remoto.",
+  "disponibilidade": "Imediata",
+  "palavras_chave_busca": [
+    "Desenvolvedor Backend",
+    "Desenvolvedor Full Stack",
+    "Backend Developer",
+    "Java Developer"
+  ],
+  "experiencias": [
+    {
+      "empresa": "Empresa Exemplo",
+      "cargo": "Desenvolvedor Full Stack",
+      "periodo": "01/2024 - Atual",
+      "descricao": "Descreva suas responsabilidades e conquistas nesta empresa."
+    }
+  ],
+  "bancos_de_dados": [
+    "PostgreSQL",
+    "MongoDB",
+    "MySQL"
+  ],
+  "metodologias": [
+    "Scrum",
+    "Kanban"
+  ],
+  "informacoes_extras": {
+    "formacao": "Sua formacao academica",
+    "idiomas": "Portugues nativo, Ingles intermediario",
+    "certificacoes": "Suas certificacoes",
+    "diferencial": "Descreva seus diferenciais"
+  }
+}
