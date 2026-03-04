@@ -35,6 +35,7 @@ O bot navega por portais de vagas (Gupy, Vagas.com, LinkedIn, Indeed), analisa c
 | **CAPTCHA via Telegram** | Envia screenshot do CAPTCHA pro Telegram — humano resolve, bot continua |
 | **Recruiter Messaging** | Envia mensagem personalizada para recrutadores no LinkedIn (nota de conexão) |
 | **Token Cost Tracking** | Registra tokens de cada chamada ao Gemini e calcula custo em USD |
+| **Multi-LLM** | Adapter pattern: Gemini (padrão), Ollama (local/grátis) ou OpenAI-compatible como provider auxiliar |
 
 ---
 
@@ -61,7 +62,7 @@ O bot navega por portais de vagas (Gupy, Vagas.com, LinkedIn, Indeed), analisa c
 └─────────────────────────────────────────────────┘
 ```
 
-**Stack:** TypeScript · Google Gemini API · Playwright MCP · SQLite · Node.js
+**Stack:** TypeScript · Google Gemini API · Playwright MCP · SQLite · Node.js · Multi-LLM (Ollama/OpenAI)
 
 ---
 
@@ -138,6 +139,11 @@ npm start
 | `EMAIL_DESTINATARIO` | Email para relatórios | *opcional* |
 | `CRON_ATIVO` | Ativar agendamento | `false` |
 | `CRON_HORARIO` | Horário da execução | `09:00` |
+| `LLM_AUX_PROVIDER` | Provider auxiliar: `gemini`, `ollama`, `openai` | `gemini` |
+| `LLM_AUX_MODEL` | Modelo do provider auxiliar | `gemini-2.5-pro` |
+| `OLLAMA_URL` | URL do servidor Ollama | `http://localhost:11434` |
+| `OPENAI_API_KEY` | Chave da API OpenAI (ou compatível) | *opcional* |
+| `OPENAI_BASE_URL` | Base URL da API OpenAI-compatible | `https://api.openai.com/v1` |
 
 ### `config/perfil.json` — Perfil do Candidato
 
@@ -273,6 +279,45 @@ Adaptado do [beatwad](https://medium.com/@beatwad): após se candidatar a uma va
 
 ---
 
+## 🔀 Multi-LLM (Adapter Pattern)
+
+Adaptado do [AIHawk](https://github.com/feder-cr/Auto_Jobs_Applier_AIHawk): o agente principal sempre usa **Gemini** (precisa do SDK de function calling), mas as tarefas auxiliares (cover letter, currículo tailored, mensagem para recrutador) podem usar **qualquer provider**:
+
+| Provider | Config | Custo | Observação |
+|---|---|---|---|
+| **Gemini** (padrão) | `LLM_AUX_PROVIDER=gemini` | Pago (API key) | Mesmo modelo do agente |
+| **Ollama** (local) | `LLM_AUX_PROVIDER=ollama` | Grátis | Roda na sua máquina, sem enviar dados |
+| **OpenAI-compatible** | `LLM_AUX_PROVIDER=openai` | Varia | OpenAI, Groq, Together AI, Mistral, vLLM |
+
+### Setup Ollama (custo zero)
+
+```bash
+# Instale: https://ollama.com
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Baixe um modelo
+ollama pull llama3
+
+# Configure no .env
+LLM_AUX_PROVIDER=ollama
+LLM_AUX_MODEL=llama3
+OLLAMA_URL=http://localhost:11434
+```
+
+### Setup OpenAI-compatible
+
+```bash
+# Funciona com: OpenAI, Groq, Together AI, Mistral, vLLM
+LLM_AUX_PROVIDER=openai
+LLM_AUX_MODEL=gpt-4o-mini
+OPENAI_API_KEY=sk-...
+OPENAI_BASE_URL=https://api.openai.com/v1
+```
+
+**Fallback automático**: se o provider auxiliar falhar, o bot retenta automaticamente com Gemini.
+
+---
+
 ## 📁 Estrutura do Projeto
 
 ```
@@ -286,6 +331,7 @@ auto-apply-bot/
 │   ├── erros.ts          # Classificação de falhas (permanentes vs retriáveis)
 │   ├── mensagem-recrutador.ts  # Mensagem personalizada para recrutadores
 │   ├── token-tracker.ts  # Tracking de custo de tokens (USD)
+│   ├── llm-adapter.ts   # Multi-LLM adapter (Gemini/Ollama/OpenAI)
 │   ├── database.ts       # SQLite (candidaturas, vagas vistas, cache, mensagens)
 │   ├── dashboard.ts      # Dashboard web
 │   ├── mcp-client.ts     # Conexão Playwright MCP
@@ -322,7 +368,7 @@ auto-apply-bot/
 - [x] ~~CAPTCHA handling via Telegram (humano resolve, bot continua)~~
 - [ ] Blacklist de empresas/títulos
 - [x] ~~Mensagem automática para recrutadores~~
-- [ ] Multi-LLM (Gemini + Ollama local como fallback)
+- [x] ~~Multi-LLM (Gemini + Ollama local como fallback)~~
 - [ ] Anonimização de dados antes de enviar ao LLM
 - [ ] Docker support
 - [x] ~~Tracking de custo de tokens~~
