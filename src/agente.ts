@@ -274,46 +274,50 @@ Lembre-se: use aguardar entre cada acao, verifique duplicatas, e varie as respos
         break;
       }
 
-      // Processa cada function call
-      const toolResults: Part[] = [];
+      // Processa function calls em paralelo (Promise.all)
+      // Quando o Gemini retorna múltiplas calls numa mesma resposta,
+      // ele já considera que são independentes entre si.
+      log('AGENTE', `Executando ${functionCalls.length} tool(s)${functionCalls.length > 1 ? ' em paralelo' : ''}...`);
 
-      for (const fc of functionCalls) {
-        const toolName = fc.name ?? 'unknown';
-        const toolArgs = (fc.args ?? {}) as Record<string, unknown>;
-        log('TOOL', `${toolName}(${JSON.stringify(toolArgs).substring(0, 100)}...)`);
+      const toolResults: Part[] = await Promise.all(
+        functionCalls.map(async (fc) => {
+          const toolName = fc.name ?? 'unknown';
+          const toolArgs = (fc.args ?? {}) as Record<string, unknown>;
+          log('TOOL', `${toolName}(${JSON.stringify(toolArgs).substring(0, 100)}...)`);
 
-        let resultado: string;
+          let resultado: string;
 
-        // Verifica se e uma tool customizada ou do MCP
-        if (customToolDeclarations.some(t => t.name === toolName)) {
-          resultado = await executarTool(toolName, toolArgs);
-        } else {
-          // Tool do Playwright MCP — executa via mcpClient
-          try {
-            const mcpResult = await mcpClient.callTool({
-              name: toolName,
-              arguments: toolArgs,
-            });
+          // Verifica se e uma tool customizada ou do MCP
+          if (customToolDeclarations.some(t => t.name === toolName)) {
+            resultado = await executarTool(toolName, toolArgs);
+          } else {
+            // Tool do Playwright MCP — executa via mcpClient
+            try {
+              const mcpResult = await mcpClient.callTool({
+                name: toolName,
+                arguments: toolArgs,
+              });
 
-            const content = mcpResult.content as Array<{ type: string; text?: string }> | undefined;
-            resultado = content
-              ?.map((c) => (c.type === 'text' ? c.text : JSON.stringify(c)))
-              .join('\n') || 'OK';
-          } catch (mcpError) {
-            resultado = `ERRO_MCP: ${mcpError instanceof Error ? mcpError.message : String(mcpError)}`;
-            log('ERRO', resultado);
+              const content = mcpResult.content as Array<{ type: string; text?: string }> | undefined;
+              resultado = content
+                ?.map((c) => (c.type === 'text' ? c.text : JSON.stringify(c)))
+                .join('\n') || 'OK';
+            } catch (mcpError) {
+              resultado = `ERRO_MCP: ${mcpError instanceof Error ? mcpError.message : String(mcpError)}`;
+              log('ERRO', resultado);
+            }
           }
-        }
 
-        log('TOOL', `Resultado: ${resultado.substring(0, 150)}...`);
+          log('TOOL', `Resultado: ${resultado.substring(0, 150)}...`);
 
-        toolResults.push({
-          functionResponse: {
-            name: fc.name,
-            response: { result: resultado },
-          },
-        });
-      }
+          return {
+            functionResponse: {
+              name: fc.name,
+              response: { result: resultado },
+            },
+          } as Part;
+        }),
+      );
 
       // Envia resultados das tools de volta ao modelo
       history.push({ role: 'user', parts: toolResults });
