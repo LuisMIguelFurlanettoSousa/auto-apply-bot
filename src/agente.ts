@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { customToolDeclarations, criarExecutorDeTools } from './tools.js';
 import { log } from './logger.js';
 import { classificarErroAPI, calcularBackoffRateLimit, MAX_TENTATIVAS } from './erros.js';
+import { registrarUsoTokens } from './token-tracker.js';
 import type { AgenteConfig, Perfil, SitesConfig } from './types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -282,6 +283,9 @@ Lembre-se: use aguardar entre cada acao, verifique duplicatas, e varie as respos
 
       // Reset do contador — iteração bem sucedida
       errosConsecutivos = 0;
+
+      // Registra uso de tokens desta chamada
+      registrarUsoTokens(config.geminiModel, response.usageMetadata, 'agente');
 
       const candidate = response.candidates?.[0];
       if (!candidate?.content) {

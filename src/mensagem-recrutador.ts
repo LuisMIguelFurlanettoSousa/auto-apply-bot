@@ -7,6 +7,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { createHash } from 'crypto';
 import { log } from './logger.js';
+import { registrarUsoTokens } from './token-tracker.js';
 import type { Perfil } from './types.js';
 
 // Cache em memória para evitar gerar a mesma mensagem 2x
@@ -106,6 +107,7 @@ export async function gerarMensagemRecrutador(
     model: geminiModel,
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
   });
+  registrarUsoTokens(geminiModel, response.usageMetadata, 'mensagem_recrutador');
 
   let texto = response.text?.trim() ?? '';
 
@@ -156,6 +158,7 @@ export async function gerarMensagemRecrutador(
       model: geminiModel,
       contents: [{ role: 'user', parts: [{ text: prompt + '\n\nATENCAO: Voce mencionou tecnologias FALSAS. Use SOMENTE: ' + perfil.stack_principal.join(', ') + '. MAXIMO 280 caracteres.' }] }],
     });
+    registrarUsoTokens(geminiModel, response2.usageMetadata, 'mensagem_recrutador_retry');
     texto = response2.text?.trim() ?? texto;
     if (texto.startsWith('```')) {
       texto = texto.replace(/^```\w*\n?/, '').replace(/\n?```$/, '').trim();

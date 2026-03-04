@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { createHash } from 'crypto';
 import { log } from './logger.js';
+import { registrarUsoTokens } from './token-tracker.js';
 import type { Perfil } from './types.js';
 
 // Cache em memória para evitar gerar a mesma cover letter 2x
@@ -78,6 +79,8 @@ export async function gerarCoverLetter(
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
   });
 
+  registrarUsoTokens(geminiModel, response.usageMetadata, 'cover_letter');
+
   let texto = response.text?.trim() ?? '';
 
   // Limpar possíveis artefatos de markdown
@@ -110,6 +113,7 @@ export async function gerarCoverLetter(
       model: geminiModel,
       contents: [{ role: 'user', parts: [{ text: prompt + '\n\nATENCAO REDOBRADA: Voce ERROU na tentativa anterior e mencionou tecnologias que o candidato NAO possui. Use SOMENTE: ' + perfil.stack_principal.join(', ') }] }],
     });
+    registrarUsoTokens(geminiModel, response2.usageMetadata, 'cover_letter_retry');
     texto = response2.text?.trim() ?? texto;
     if (texto.startsWith('```')) {
       texto = texto.replace(/^```\w*\n?/, '').replace(/\n?```$/, '').trim();

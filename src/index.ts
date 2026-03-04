@@ -10,6 +10,7 @@ import { inicializarLogger, log } from './logger.js';
 import { configurarTelegram, notificarResumo, notificarErro } from './notificacoes.js';
 import { configurarEmail, enviarRelatorioEmail, gerarHTMLRelatorio } from './email.js';
 import { iniciarCron, pararCron } from './cron.js';
+import { exibirResumoTokens, obterCustoTotal, obterTokensTotal, obterTotalChamadas, resetarTracker } from './token-tracker.js';
 import type { Perfil, SitesConfig, AgenteConfig } from './types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -126,7 +127,11 @@ async function executarFluxoPrincipal(config: AgenteConfig): Promise<void> {
   log('INFO', `  Total hoje: ${candidaturasDepois}/${config.limiteDiario}`);
   log('INFO', `  Sites processados: ${sitesAtivos.map(s => s.nome).join(', ')}`);
   log('INFO', `  Erros: ${erros.length > 0 ? erros.join('; ') : 'Nenhum'}`);
+  log('INFO', `  Custo tokens:      $${obterCustoTotal().toFixed(4)} USD (${obterTokensTotal().toLocaleString('pt-BR')} tokens, ${obterTotalChamadas()} chamadas)`);
   log('INFO', `  Dashboard: http://localhost:${config.dashboardPort}`);
+
+  // Resumo detalhado de tokens
+  exibirResumoTokens();
 
   if (resultado) {
     log('AGENTE', `Relatorio:\n${resultado}`);
@@ -182,7 +187,10 @@ async function main() {
     log('INFO', 'O bot ficara rodando e executara automaticamente no horario configurado.');
     log('INFO', 'Pressione Ctrl+C para parar.');
 
-    iniciarCron(config.cronHorario, () => executarFluxoPrincipal(config));
+    iniciarCron(config.cronHorario, () => {
+      resetarTracker();
+      return executarFluxoPrincipal(config);
+    });
 
     // Mantém o processo vivo
     process.on('SIGINT', () => {

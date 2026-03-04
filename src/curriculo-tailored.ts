@@ -5,6 +5,7 @@ import { createHash } from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { log } from './logger.js';
+import { registrarUsoTokens } from './token-tracker.js';
 import type { Perfil } from './types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -201,6 +202,8 @@ export async function gerarCurriculoTailored(
       model: geminiModel,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
     });
+
+    registrarUsoTokens(geminiModel, response.usageMetadata, 'curriculo_tailored');
 
     htmlOtimizado = response.text?.trim() ?? '';
 
