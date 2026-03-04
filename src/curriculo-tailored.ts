@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { log } from './logger.js';
 import { gerarTextoAux } from './llm-adapter.js';
+import { anonimizarPerfil, desanonimizar } from './anonimizacao.js';
 import type { Perfil } from './types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -185,13 +186,16 @@ export async function gerarCurriculoTailored(
     return { caminhoPDF, caminhoHTML, fonte: 'cache' };
   }
 
-  // Gerar HTML base a partir do perfil
-  const htmlBase = gerarHTMLBase(perfil);
+  // Anonimiza PII antes de enviar ao LLM
+  const { perfilAnonimo, mapa } = anonimizarPerfil(perfil);
 
-  // Chamar Gemini para otimizar o HTML
+  // Gerar HTML base com dados anonimizados (vai no prompt para o LLM)
+  const htmlBase = gerarHTMLBase(perfilAnonimo);
+
+  // Chamar LLM para otimizar o HTML
   log('TOOL', `Gerando curriculo tailored para vaga (hash: ${hash})...`);
 
-  const prompt = buildTailoringPrompt(htmlBase, descricaoVaga, perfil);
+  const prompt = buildTailoringPrompt(htmlBase, descricaoVaga, perfilAnonimo);
 
   let htmlOtimizado: string;
 
@@ -215,6 +219,9 @@ export async function gerarCurriculoTailored(
     if (!htmlOtimizado.includes('<!DOCTYPE html') && !htmlOtimizado.includes('<html')) {
       throw new Error('Gemini retornou resposta que nao e HTML valido');
     }
+
+    // Restaura dados reais (nome, email, telefone, links) no HTML
+    htmlOtimizado = desanonimizar(htmlOtimizado, mapa);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     log('ERRO', `Falha ao gerar curriculo tailored: ${msg}`);

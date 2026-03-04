@@ -7,6 +7,7 @@ import { customToolDeclarations, criarExecutorDeTools } from './tools.js';
 import { log } from './logger.js';
 import { classificarErroAPI, calcularBackoffRateLimit, MAX_TENTATIVAS } from './erros.js';
 import { registrarUsoTokens } from './token-tracker.js';
+import { perfilParaSystemPrompt } from './anonimizacao.js';
 import type { AgenteConfig, Perfil, SitesConfig } from './types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -146,8 +147,8 @@ O sistema gera um curriculo PERSONALIZADO para cada vaga usando IA.
 - Use browser_upload_file com o caminho retornado pela tool.
 - Se browser_upload_file nao estiver disponivel, informe o caminho para upload manual.
 
-## Dados do Candidato
-${JSON.stringify(perfil, null, 2)}
+## Dados do Candidato (PII de contato omitido — use obter_perfil_candidato para email, telefone, links)
+${JSON.stringify(perfilParaSystemPrompt(perfil), null, 2)}
 
 ## Sites para Processar
 ${JSON.stringify(sites.sites.filter(s => s.ativo), null, 2)}

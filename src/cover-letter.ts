@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import { log } from './logger.js';
 import { gerarTextoAux } from './llm-adapter.js';
+import { anonimizarPerfil, desanonimizar } from './anonimizacao.js';
 import type { Perfil } from './types.js';
 
 // Cache em memória para evitar gerar a mesma cover letter 2x
@@ -70,10 +71,13 @@ export async function gerarCoverLetter(
 
   log('TOOL', `Gerando cover letter para ${tituloVaga} na ${empresa}...`);
 
-  const prompt = buildCoverLetterPrompt(perfil, descricaoVaga, empresa, tituloVaga);
+  // Anonimiza PII antes de enviar ao LLM
+  const { perfilAnonimo, mapa } = anonimizarPerfil(perfil);
+
+  const prompt = buildCoverLetterPrompt(perfilAnonimo, descricaoVaga, empresa, tituloVaga);
   const response = await gerarTextoAux(prompt, 'cover_letter');
 
-  let texto = response.text;
+  let texto = desanonimizar(response.text, mapa);
 
   // Limpar possíveis artefatos de markdown
   if (texto.startsWith('```')) {
@@ -104,7 +108,7 @@ export async function gerarCoverLetter(
       prompt + '\n\nATENCAO REDOBRADA: Voce ERROU na tentativa anterior e mencionou tecnologias que o candidato NAO possui. Use SOMENTE: ' + perfil.stack_principal.join(', '),
       'cover_letter_retry',
     );
-    texto = response2.text;
+    texto = desanonimizar(response2.text, mapa);
     if (texto.startsWith('```')) {
       texto = texto.replace(/^```\w*\n?/, '').replace(/\n?```$/, '').trim();
     }

@@ -7,6 +7,7 @@
 import { createHash } from 'crypto';
 import { log } from './logger.js';
 import { gerarTextoAux } from './llm-adapter.js';
+import { anonimizarPerfil, desanonimizar } from './anonimizacao.js';
 import type { Perfil } from './types.js';
 
 // Cache em memória para evitar gerar a mesma mensagem 2x
@@ -97,13 +98,16 @@ export async function gerarMensagemRecrutador(
 
   log('TOOL', `Gerando mensagem para recrutador ${nomeRecrutador || '(sem nome)'} na ${empresa}...`);
 
+  // Anonimiza PII antes de enviar ao LLM
+  const { perfilAnonimo, mapa } = anonimizarPerfil(perfil);
+
   const prompt = buildMensagemRecrutadorPrompt(
-    perfil, nomeRecrutador, cargoRecrutador, empresa, tituloVaga, descricaoVaga,
+    perfilAnonimo, nomeRecrutador, cargoRecrutador, empresa, tituloVaga, descricaoVaga,
   );
 
   const response = await gerarTextoAux(prompt, 'mensagem_recrutador');
 
-  let texto = response.text;
+  let texto = desanonimizar(response.text, mapa);
 
   // Limpar artefatos de markdown
   if (texto.startsWith('```')) {
@@ -152,7 +156,7 @@ export async function gerarMensagemRecrutador(
       prompt + '\n\nATENCAO: Voce mencionou tecnologias FALSAS. Use SOMENTE: ' + perfil.stack_principal.join(', ') + '. MAXIMO 280 caracteres.',
       'mensagem_recrutador_retry',
     );
-    texto = response2.text;
+    texto = desanonimizar(response2.text, mapa);
     if (texto.startsWith('```')) {
       texto = texto.replace(/^```\w*\n?/, '').replace(/\n?```$/, '').trim();
     }
