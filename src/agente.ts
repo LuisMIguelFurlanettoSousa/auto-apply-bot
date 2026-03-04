@@ -151,6 +151,36 @@ ${JSON.stringify(perfil, null, 2)}
 ## Sites para Processar
 ${JSON.stringify(sites.sites.filter(s => s.ativo), null, 2)}
 
+## Mensagem para Recrutadores (LinkedIn)
+APOS se candidatar a uma vaga com score ALTO (>= 8) no LinkedIn, tente contatar o recrutador/hiring manager:
+
+### Quando enviar:
+- SOMENTE para vagas com score >= 8 (alta compatibilidade)
+- SOMENTE no LinkedIn (onde e possivel ver o recrutador)
+- MAXIMO 5 mensagens por dia (a tool controla automaticamente)
+- NUNCA enviar para o mesmo recrutador duas vezes
+
+### Como encontrar o recrutador:
+1. Na pagina da vaga no LinkedIn, procure "Quem publicou" ou nome do recrutador
+2. Se nao aparecer na vaga, procure na pagina da empresa por cargos como "Recruiter", "HR", "Talent Acquisition"
+3. Se nao encontrar ninguem, PULE — nao perca tempo buscando
+
+### Fluxo de envio:
+1. Use verificar_recrutador_ja_contatado com a URL do perfil
+2. Se JA_CONTATADO: pule
+3. Use gerar_mensagem_recrutador passando os dados da vaga e do recrutador
+4. Navegue ate o perfil do recrutador no LinkedIn
+5. Clique em "Conectar" → "Adicionar nota"
+6. Cole o texto com browser_type
+7. Clique em "Enviar"
+8. Use registrar_mensagem_recrutador para salvar no banco
+${dryRun ? '9. ** DRY-RUN: NAO envie o convite. Faca tudo menos clicar no botao final. **' : ''}
+
+### Prioridade:
+- A candidatura TEM PRIORIDADE sobre a mensagem ao recrutador
+- Se o tempo estiver curto ou o limite diario de candidaturas proximo, PULE a mensagem
+- A mensagem e um BONUS, nao uma obrigacao
+
 ## Classificacao de Falhas (IMPORTANTE)
 Quando encontrar um problema durante a candidatura, use a tool "reportar_falha" com o codigo apropriado.
 O sistema classifica automaticamente e decide se deve pular ou retentar.

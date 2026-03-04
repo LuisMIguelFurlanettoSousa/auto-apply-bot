@@ -14,11 +14,15 @@ import {
   buscarCandidatasCache,
   salvarRespostaCache,
   sanitizarPergunta,
+  verificarRecrutadorJaContatado,
+  registrarMensagemRecrutador,
+  contarMensagensHoje,
 } from './database.js';
 import { log } from './logger.js';
 import { notificarCandidatura, solicitarResolucaoCaptcha } from './notificacoes.js';
 import { gerarCurriculoTailored } from './curriculo-tailored.js';
 import { gerarCoverLetter } from './cover-letter.js';
+import { gerarMensagemRecrutador } from './mensagem-recrutador.js';
 import {
   ehFalhaPermanente,
   ehFalhaRetriavel,
@@ -432,6 +436,95 @@ export const customToolDeclarations: FunctionDeclaration[] = [
       required: ['screenshot_base64', 'url_vaga'],
     },
   },
+  {
+    name: 'gerar_mensagem_recrutador',
+    description:
+      'Gera uma mensagem personalizada para enviar ao recrutador/hiring manager da vaga via LinkedIn. A mensagem tem no maximo 280 caracteres (nota de conexao). Use SOMENTE quando: (1) a vaga tem score alto (>= 8), (2) voce identificou o recrutador na pagina da vaga, e (3) o recrutador NAO foi contatado antes. A mensagem usa dados REAIS do candidato e destaca intersecoes com a vaga.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        nome_recrutador: {
+          type: Type.STRING,
+          description: 'Nome do recrutador/hiring manager (encontrado na pagina da vaga ou perfil LinkedIn)',
+        },
+        cargo_recrutador: {
+          type: Type.STRING,
+          description: 'Cargo do recrutador (Recruiter, HR Manager, Tech Lead, etc.)',
+        },
+        empresa: {
+          type: Type.STRING,
+          description: 'Nome da empresa',
+        },
+        titulo_vaga: {
+          type: Type.STRING,
+          description: 'Titulo da vaga',
+        },
+        descricao_vaga: {
+          type: Type.STRING,
+          description: 'Descricao da vaga (requisitos, responsabilidades)',
+        },
+      },
+      required: ['nome_recrutador', 'empresa', 'titulo_vaga', 'descricao_vaga'],
+    },
+  },
+  {
+    name: 'verificar_recrutador_ja_contatado',
+    description:
+      'Verifica se um recrutador ja foi contatado anteriormente (pelo URL do perfil LinkedIn). Use ANTES de gerar mensagem para evitar enviar mensagem duplicada.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        url_perfil: {
+          type: Type.STRING,
+          description: 'URL do perfil LinkedIn do recrutador',
+        },
+      },
+      required: ['url_perfil'],
+    },
+  },
+  {
+    name: 'registrar_mensagem_recrutador',
+    description:
+      'Registra no banco que uma mensagem foi enviada para um recrutador. Use APOS enviar o convite de conexao com sucesso no LinkedIn.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        nome_recrutador: {
+          type: Type.STRING,
+          description: 'Nome do recrutador',
+        },
+        cargo_recrutador: {
+          type: Type.STRING,
+          description: 'Cargo do recrutador',
+        },
+        empresa: {
+          type: Type.STRING,
+          description: 'Nome da empresa',
+        },
+        url_perfil: {
+          type: Type.STRING,
+          description: 'URL do perfil LinkedIn do recrutador',
+        },
+        url_vaga: {
+          type: Type.STRING,
+          description: 'URL da vaga associada',
+        },
+        titulo_vaga: {
+          type: Type.STRING,
+          description: 'Titulo da vaga',
+        },
+        mensagem: {
+          type: Type.STRING,
+          description: 'Texto da mensagem que foi enviada',
+        },
+        score_vaga: {
+          type: Type.NUMBER,
+          description: 'Score da vaga (1-10)',
+        },
+      },
+      required: ['nome_recrutador', 'empresa', 'url_perfil', 'mensagem'],
+    },
+  },
 ];
 
 // ========== EXECUTOR DAS TOOLS ==========
@@ -790,6 +883,82 @@ export function criarExecutorDeTools(perfil: Perfil, geminiApiKey?: string, gemi
           codigo: codigoFalha,
           mensagem: `Codigo de falha desconhecido (${codigoFalha}). Pule esta vaga por seguranca.`,
         });
+      }
+
+      case 'gerar_mensagem_recrutador': {
+        const nomeRecrutador = args.nome_recrutador as string;
+        const cargoRecrutador = (args.cargo_recrutador as string) || '';
+        const empresa = args.empresa as string;
+        const tituloVaga = args.titulo_vaga as string;
+        const descricaoVaga = args.descricao_vaga as string;
+
+        // Verifica limite diário de mensagens (max 5 por dia)
+        const mensagensHoje = contarMensagensHoje();
+        if (mensagensHoje >= 5) {
+          return JSON.stringify({
+            sucesso: false,
+            motivo: 'LIMITE_DIARIO',
+            mensagem: `Limite diario de mensagens a recrutadores atingido (${mensagensHoje}/5). Nao envie mais mensagens hoje.`,
+          });
+        }
+
+        if (!_geminiApiKey || !_geminiModel) {
+          return 'ERRO: Configuracao do Gemini nao disponivel para gerar mensagem.';
+        }
+
+        try {
+          const resultado = await gerarMensagemRecrutador(
+            _geminiApiKey,
+            _geminiModel,
+            perfil,
+            nomeRecrutador,
+            cargoRecrutador,
+            empresa,
+            tituloVaga,
+            descricaoVaga,
+          );
+
+          log('TOOL', `Mensagem recrutador ${resultado.fonte === 'cache' ? '(cache)' : '(nova)'}: ${nomeRecrutador} — ${empresa}`);
+
+          return JSON.stringify({
+            sucesso: true,
+            texto: resultado.texto,
+            caracteres: resultado.texto.length,
+            fonte: resultado.fonte,
+            instrucao: 'Use este texto como nota ao enviar convite de conexao no LinkedIn. Passos: (1) va ao perfil do recrutador, (2) clique em "Conectar", (3) clique em "Adicionar nota", (4) cole o texto com browser_type, (5) clique em "Enviar". Apos sucesso, use registrar_mensagem_recrutador.',
+          });
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          log('ERRO', `Falha na mensagem recrutador: ${msg}`);
+          return `ERRO: ${msg}. Pule o envio de mensagem para este recrutador.`;
+        }
+      }
+
+      case 'verificar_recrutador_ja_contatado': {
+        const urlPerfil = args.url_perfil as string;
+        const jaContatado = verificarRecrutadorJaContatado(urlPerfil);
+        return jaContatado
+          ? 'JA_CONTATADO: Este recrutador ja recebeu uma mensagem anteriormente. Pule.'
+          : 'NOVO: Este recrutador ainda nao foi contatado. Pode prosseguir.';
+      }
+
+      case 'registrar_mensagem_recrutador': {
+        const sucesso = registrarMensagemRecrutador({
+          nome_recrutador: args.nome_recrutador as string,
+          cargo_recrutador: (args.cargo_recrutador as string) || undefined,
+          empresa: args.empresa as string,
+          url_perfil: args.url_perfil as string,
+          url_vaga: (args.url_vaga as string) || undefined,
+          titulo_vaga: (args.titulo_vaga as string) || undefined,
+          mensagem: args.mensagem as string,
+          score_vaga: (args.score_vaga as number) || undefined,
+        });
+
+        if (sucesso) {
+          log('AGENTE', `Mensagem registrada: ${args.nome_recrutador} — ${args.empresa}`);
+          return 'REGISTRADO: Mensagem para recrutador salva no banco de dados.';
+        }
+        return 'ERRO: Falha ao registrar (recrutador possivelmente ja contatado).';
       }
 
       case 'resolver_captcha_telegram': {

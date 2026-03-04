@@ -66,6 +66,22 @@ export function inicializarBanco(): Database.Database {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS mensagens_recrutadores (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome_recrutador TEXT NOT NULL,
+      cargo_recrutador TEXT,
+      empresa TEXT NOT NULL,
+      url_perfil TEXT UNIQUE NOT NULL,
+      url_vaga TEXT,
+      titulo_vaga TEXT,
+      mensagem TEXT NOT NULL,
+      plataforma TEXT DEFAULT 'linkedin',
+      score_vaga INTEGER DEFAULT 0,
+      data_envio TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    )
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS log_execucoes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       data_execucao TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
@@ -179,6 +195,54 @@ export function registrarExecucao(totalCandidaturas: number, sitesProcessados: s
     INSERT INTO log_execucoes (total_candidaturas, sites_processados, erros)
     VALUES (?, ?, ?)
   `).run(totalCandidaturas, JSON.stringify(sitesProcessados), JSON.stringify(erros));
+}
+
+// ========== MENSAGENS PARA RECRUTADORES ==========
+
+export function verificarRecrutadorJaContatado(urlPerfil: string): boolean {
+  const row = db.prepare('SELECT id FROM mensagens_recrutadores WHERE url_perfil = ?').get(urlPerfil);
+  return !!row;
+}
+
+export function registrarMensagemRecrutador(dados: {
+  nome_recrutador: string;
+  cargo_recrutador?: string;
+  empresa: string;
+  url_perfil: string;
+  url_vaga?: string;
+  titulo_vaga?: string;
+  mensagem: string;
+  plataforma?: string;
+  score_vaga?: number;
+}): boolean {
+  try {
+    db.prepare(`
+      INSERT OR IGNORE INTO mensagens_recrutadores
+        (nome_recrutador, cargo_recrutador, empresa, url_perfil, url_vaga, titulo_vaga, mensagem, plataforma, score_vaga)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      dados.nome_recrutador,
+      dados.cargo_recrutador ?? null,
+      dados.empresa,
+      dados.url_perfil,
+      dados.url_vaga ?? null,
+      dados.titulo_vaga ?? null,
+      dados.mensagem,
+      dados.plataforma ?? 'linkedin',
+      dados.score_vaga ?? 0,
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function contarMensagensHoje(): number {
+  const row = db.prepare(`
+    SELECT COUNT(*) as total FROM mensagens_recrutadores
+    WHERE date(data_envio) = date('now', 'localtime')
+  `).get() as { total: number };
+  return row.total;
 }
 
 // ========== CACHE DE RESPOSTAS ==========
