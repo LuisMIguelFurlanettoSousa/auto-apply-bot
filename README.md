@@ -34,6 +34,7 @@ O bot navega por portais de vagas (Gupy, Vagas.com, LinkedIn, Indeed), analisa c
 | **Error Classification** | Classifica falhas como permanentes (pula) ou retriáveis (retenta com backoff) |
 | **CAPTCHA via Telegram** | Envia screenshot do CAPTCHA pro Telegram — humano resolve, bot continua |
 | **Recruiter Messaging** | Envia mensagem personalizada para recrutadores no LinkedIn (nota de conexão) |
+| **Token Cost Tracking** | Registra tokens de cada chamada ao Gemini e calcula custo em USD |
 
 ---
 
@@ -284,6 +285,7 @@ auto-apply-bot/
 │   ├── cover-letter.ts   # Geração de carta de apresentação por vaga
 │   ├── erros.ts          # Classificação de falhas (permanentes vs retriáveis)
 │   ├── mensagem-recrutador.ts  # Mensagem personalizada para recrutadores
+│   ├── token-tracker.ts  # Tracking de custo de tokens (USD)
 │   ├── database.ts       # SQLite (candidaturas, vagas vistas, cache, mensagens)
 │   ├── dashboard.ts      # Dashboard web
 │   ├── mcp-client.ts     # Conexão Playwright MCP
@@ -323,7 +325,7 @@ auto-apply-bot/
 - [ ] Multi-LLM (Gemini + Ollama local como fallback)
 - [ ] Anonimização de dados antes de enviar ao LLM
 - [ ] Docker support
-- [ ] Tracking de custo de tokens
+- [x] ~~Tracking de custo de tokens~~
 
 ---
 
