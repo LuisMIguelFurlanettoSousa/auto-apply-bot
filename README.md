@@ -32,6 +32,7 @@ O bot navega por portais de vagas (Gupy, Vagas.com, LinkedIn, Indeed), analisa c
 | **Pre-defined Q&A** | Respostas base para perguntas comuns em formulários |
 | **Response Variation** | Varia respostas automaticamente para parecer humano |
 | **Error Classification** | Classifica falhas como permanentes (pula) ou retriáveis (retenta com backoff) |
+| **CAPTCHA via Telegram** | Envia screenshot do CAPTCHA pro Telegram — humano resolve, bot continua |
 
 ---
 
@@ -240,6 +241,21 @@ Adaptado do [ApplyPilot](https://github.com/nicognaW/ApplyPilot), o bot classifi
 
 ---
 
+## 🔒 CAPTCHA Handling via Telegram
+
+Adaptado do [beatwad](https://medium.com/@beatwad): quando o bot encontra um CAPTCHA, em vez de parar, ele solicita ajuda humana via Telegram:
+
+1. O agente detecta o CAPTCHA e tira screenshot
+2. Envia a foto para o Telegram com instruções
+3. Aguarda o humano responder com a solução (polling, timeout: 5 min)
+4. Recebe a solução e digita no campo do CAPTCHA
+5. Se falhar, repete até 3 tentativas
+6. Se timeout ou 3 falhas: pula a vaga e continua
+
+**Requisitos**: `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` configurados no `.env`.
+
+---
+
 ## 📁 Estrutura do Projeto
 
 ```
@@ -284,7 +300,7 @@ auto-apply-bot/
 ## 🛣️ Roadmap
 
 - [ ] Suporte a mais plataformas (Catho, Trampos, etc.)
-- [ ] CAPTCHA handling via Telegram (humano resolve, bot continua)
+- [x] ~~CAPTCHA handling via Telegram (humano resolve, bot continua)~~
 - [ ] Blacklist de empresas/títulos
 - [ ] Mensagem automática para recrutadores
 - [ ] Multi-LLM (Gemini + Ollama local como fallback)
