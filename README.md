@@ -33,6 +33,7 @@ O bot navega por portais de vagas (Gupy, Vagas.com, LinkedIn, Indeed), analisa c
 | **Response Variation** | Varia respostas automaticamente para parecer humano |
 | **Error Classification** | Classifica falhas como permanentes (pula) ou retriáveis (retenta com backoff) |
 | **CAPTCHA via Telegram** | Envia screenshot do CAPTCHA pro Telegram — humano resolve, bot continua |
+| **Recruiter Messaging** | Envia mensagem personalizada para recrutadores no LinkedIn (nota de conexão) |
 
 ---
 
@@ -256,6 +257,21 @@ Adaptado do [beatwad](https://medium.com/@beatwad): quando o bot encontra um CAP
 
 ---
 
+## 💬 Mensagem para Recrutadores
+
+Adaptado do [beatwad](https://medium.com/@beatwad): após se candidatar a uma vaga com **score alto (>= 8)** no LinkedIn, o bot tenta contatar o recrutador/hiring manager:
+
+1. Identifica o recrutador na página da vaga
+2. Verifica se já foi contatado anteriormente (banco SQLite)
+3. Gera mensagem personalizada via Gemini (max 280 chars — limite do LinkedIn)
+4. Navega até o perfil do recrutador
+5. Envia convite de conexão com nota personalizada
+6. Registra no banco para não recontatar
+
+**Limites**: máximo 5 mensagens/dia. Candidatura sempre tem prioridade — a mensagem é um bônus.
+
+---
+
 ## 📁 Estrutura do Projeto
 
 ```
@@ -267,7 +283,8 @@ auto-apply-bot/
 │   ├── curriculo-tailored.ts  # Geração de currículo personalizado por vaga
 │   ├── cover-letter.ts   # Geração de carta de apresentação por vaga
 │   ├── erros.ts          # Classificação de falhas (permanentes vs retriáveis)
-│   ├── database.ts       # SQLite (candidaturas, vagas vistas, cache)
+│   ├── mensagem-recrutador.ts  # Mensagem personalizada para recrutadores
+│   ├── database.ts       # SQLite (candidaturas, vagas vistas, cache, mensagens)
 │   ├── dashboard.ts      # Dashboard web
 │   ├── mcp-client.ts     # Conexão Playwright MCP
 │   ├── logger.ts         # Log em arquivo
@@ -302,7 +319,7 @@ auto-apply-bot/
 - [ ] Suporte a mais plataformas (Catho, Trampos, etc.)
 - [x] ~~CAPTCHA handling via Telegram (humano resolve, bot continua)~~
 - [ ] Blacklist de empresas/títulos
-- [ ] Mensagem automática para recrutadores
+- [x] ~~Mensagem automática para recrutadores~~
 - [ ] Multi-LLM (Gemini + Ollama local como fallback)
 - [ ] Anonimização de dados antes de enviar ao LLM
 - [ ] Docker support
