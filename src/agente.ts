@@ -9,6 +9,10 @@ import type { AgenteConfig, Perfil, SitesConfig } from './types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MAX_ITERACOES = 100;
+// Sliding window: mantém só as últimas N mensagens no histórico.
+// Mensagens antigas (vagas já processadas, snapshots antigos) são descartadas
+// para evitar estouro de contexto, custo excessivo e degradação de qualidade.
+const MAX_HISTORICO = 30;
 const RECOVERY_PATH = path.resolve(__dirname, '..', 'data', 'recovery.json');
 
 function buildSystemPrompt(perfil: Perfil, sites: SitesConfig, config: AgenteConfig): string {
@@ -252,6 +256,13 @@ Lembre-se: use aguardar entre cada acao, verifique duplicatas, e varie as respos
 
       // Envia resultados das tools de volta ao modelo
       history.push({ role: 'user', parts: toolResults });
+
+      // Sliding window: descarta mensagens antigas se o histórico cresceu demais
+      if (history.length > MAX_HISTORICO) {
+        const removidas = history.length - MAX_HISTORICO;
+        history.splice(0, removidas);
+        log('AGENTE', `Sliding window: ${removidas} mensagens antigas descartadas (historico: ${history.length})`);
+      }
 
       // Salva estado para recovery a cada 5 iteracoes
       if (iteracao % 5 === 0) {
