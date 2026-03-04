@@ -16,7 +16,7 @@ import {
   sanitizarPergunta,
 } from './database.js';
 import { log } from './logger.js';
-import { notificarCandidatura } from './notificacoes.js';
+import { notificarCandidatura, solicitarResolucaoCaptcha } from './notificacoes.js';
 import { gerarCurriculoTailored } from './curriculo-tailored.js';
 import { gerarCoverLetter } from './cover-letter.js';
 import {
@@ -413,6 +413,25 @@ export const customToolDeclarations: FunctionDeclaration[] = [
       required: ['url_vaga', 'codigo_falha', 'descricao'],
     },
   },
+  {
+    name: 'resolver_captcha_telegram',
+    description:
+      'Envia screenshot de um CAPTCHA para o Telegram e aguarda o usuario humano resolver. Retorna a solucao digitada pelo usuario. Use quando encontrar um CAPTCHA que impede o progresso da candidatura. REQUER: Telegram configurado (.env). Timeout: 5 minutos.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        screenshot_base64: {
+          type: Type.STRING,
+          description: 'Screenshot do CAPTCHA em base64 (obtido via browser_take_screenshot)',
+        },
+        url_vaga: {
+          type: Type.STRING,
+          description: 'URL da pagina onde o CAPTCHA apareceu',
+        },
+      },
+      required: ['screenshot_base64', 'url_vaga'],
+    },
+  },
 ];
 
 // ========== EXECUTOR DAS TOOLS ==========
@@ -771,6 +790,39 @@ export function criarExecutorDeTools(perfil: Perfil, geminiApiKey?: string, gemi
           codigo: codigoFalha,
           mensagem: `Codigo de falha desconhecido (${codigoFalha}). Pule esta vaga por seguranca.`,
         });
+      }
+
+      case 'resolver_captcha_telegram': {
+        const screenshotB64 = args.screenshot_base64 as string;
+        const urlCaptcha = args.url_vaga as string;
+
+        log('FALHA', `CAPTCHA detectado em: ${urlCaptcha}. Solicitando resolução via Telegram...`);
+
+        try {
+          const solucao = await solicitarResolucaoCaptcha(screenshotB64, urlCaptcha);
+
+          if (solucao) {
+            return JSON.stringify({
+              sucesso: true,
+              solucao,
+              instrucao: 'Digite esta solucao no campo do CAPTCHA usando browser_type e depois submeta o formulario. Se o CAPTCHA rejeitar a solucao, tire outro screenshot e chame esta tool novamente (max 3 tentativas).',
+            });
+          }
+
+          return JSON.stringify({
+            sucesso: false,
+            motivo: 'timeout',
+            instrucao: 'Nenhuma solucao recebida em 5 minutos. Use reportar_falha com codigo "captcha" para pular esta vaga.',
+          });
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          log('ERRO', `CAPTCHA resolver: ${msg}`);
+          return JSON.stringify({
+            sucesso: false,
+            motivo: msg,
+            instrucao: 'Falha ao solicitar resolucao. Use reportar_falha com codigo "captcha" para pular esta vaga.',
+          });
+        }
       }
 
       case 'gerar_cover_letter': {
