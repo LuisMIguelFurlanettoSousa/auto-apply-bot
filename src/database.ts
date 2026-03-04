@@ -50,6 +50,22 @@ export function inicializarBanco(): Database.Database {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS cache_respostas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tipo_campo TEXT NOT NULL,
+      pergunta_sanitizada TEXT NOT NULL,
+      resposta TEXT NOT NULL,
+      vezes_usada INTEGER DEFAULT 1,
+      data_criacao TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+      data_ultimo_uso TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    )
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_cache_pergunta ON cache_respostas(pergunta_sanitizada);
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS log_execucoes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       data_execucao TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
@@ -163,6 +179,102 @@ export function registrarExecucao(totalCandidaturas: number, sitesProcessados: s
     INSERT INTO log_execucoes (total_candidaturas, sites_processados, erros)
     VALUES (?, ?, ?)
   `).run(totalCandidaturas, JSON.stringify(sitesProcessados), JSON.stringify(erros));
+}
+
+// ========== CACHE DE RESPOSTAS ==========
+
+export interface CacheResposta {
+  id: number;
+  tipo_campo: string;
+  pergunta_sanitizada: string;
+  resposta: string;
+  vezes_usada: number;
+}
+
+export function sanitizarPergunta(texto: string): string {
+  return texto
+    .toLowerCase()
+    .trim()
+    .replace(/['"\\]/g, '')
+    .replace(/[\x00-\x1F\x7F]/g, '')
+    .replace(/\n/g, ' ')
+    .replace(/\r/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/,\s*$/, '');
+}
+
+export function buscarRespostaCache(pergunta: string, tipoCampo: string): CacheResposta | null {
+  const sanitizada = sanitizarPergunta(pergunta);
+
+  // 1. Exact match (como o AIHawk)
+  const exata = db.prepare(
+    'SELECT * FROM cache_respostas WHERE pergunta_sanitizada = ? AND tipo_campo = ?',
+  ).get(sanitizada, tipoCampo) as CacheResposta | undefined;
+
+  if (exata) {
+    // Atualizar contador e data de uso
+    db.prepare(
+      'UPDATE cache_respostas SET vezes_usada = vezes_usada + 1, data_ultimo_uso = datetime("now", "localtime") WHERE id = ?',
+    ).run(exata.id);
+    return exata;
+  }
+
+  // 2. Substring match (para dropdowns/radios, como o AIHawk usa 'in')
+  if (tipoCampo === 'dropdown' || tipoCampo === 'radio') {
+    const todas = db.prepare(
+      'SELECT * FROM cache_respostas WHERE tipo_campo = ?',
+    ).all(tipoCampo) as CacheResposta[];
+
+    for (const item of todas) {
+      if (sanitizada.includes(item.pergunta_sanitizada) || item.pergunta_sanitizada.includes(sanitizada)) {
+        db.prepare(
+          'UPDATE cache_respostas SET vezes_usada = vezes_usada + 1, data_ultimo_uso = datetime("now", "localtime") WHERE id = ?',
+        ).run(item.id);
+        return item;
+      }
+    }
+  }
+
+  return null;
+}
+
+export function buscarCandidatasCache(pergunta: string, limite: number = 10): CacheResposta[] {
+  const sanitizada = sanitizarPergunta(pergunta);
+  // Busca perguntas que compartilham palavras-chave para matching semântico via LLM
+  const palavras = sanitizada.split(' ').filter(p => p.length > 3);
+  if (palavras.length === 0) return [];
+
+  const condicoes = palavras.map(() => 'pergunta_sanitizada LIKE ?').join(' OR ');
+  const params = palavras.map(p => `%${p}%`);
+
+  return db.prepare(
+    `SELECT * FROM cache_respostas WHERE ${condicoes} ORDER BY vezes_usada DESC LIMIT ?`,
+  ).all(...params, limite) as CacheResposta[];
+}
+
+export function salvarRespostaCache(pergunta: string, tipoCampo: string, resposta: string): boolean {
+  const sanitizada = sanitizarPergunta(pergunta);
+
+  // Verificar se já existe
+  const existe = db.prepare(
+    'SELECT id FROM cache_respostas WHERE pergunta_sanitizada = ? AND tipo_campo = ?',
+  ).get(sanitizada, tipoCampo);
+
+  if (existe) return false;
+
+  try {
+    db.prepare(
+      'INSERT INTO cache_respostas (tipo_campo, pergunta_sanitizada, resposta) VALUES (?, ?, ?)',
+    ).run(tipoCampo, sanitizada, resposta);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function contarCacheRespostas(): number {
+  const row = db.prepare('SELECT COUNT(*) as total FROM cache_respostas').get() as { total: number };
+  return row.total;
 }
 
 export function fecharBanco(): void {

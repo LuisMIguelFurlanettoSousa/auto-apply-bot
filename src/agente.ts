@@ -106,6 +106,15 @@ Antes de se candidatar a qualquer vaga, SEMPRE use a tool "pontuar_vaga" passand
 - VARIE a forma de escrever (sinonimos, estrutura frasal), mas mantenha o conteudo fiel.
 - Se o formulario pedir algo que NAO esta nas respostas pre-definidas, use os dados do perfil do candidato.
 
+## Cache de Respostas (ECONOMIZA TOKENS)
+Para CADA campo de formulario, siga esta ordem:
+1. Use buscar_resposta_cache passando o texto da pergunta e o tipo do campo.
+2. Se retornar cache HIT: use a resposta cacheada (pode variar levemente).
+3. Se retornar candidatas: verifique se alguma e semanticamente equivalente. Se sim, reutilize.
+4. Se cache MISS: gere a resposta normalmente e depois use salvar_resposta_cache para guardar.
+- NAO salve no cache: cover letters, respostas que mencionam o nome da empresa, campos de data.
+- O cache persiste entre execucoes — quanto mais usar, mais rapido fica.
+
 ## Carta de Apresentacao / Cover Letter (IMPORTANTE)
 - Se o formulario tiver campo de "carta de apresentacao", "cover letter", "por que voce quer trabalhar aqui" (campo de texto longo), ou "apresente-se":
   - Use gerar_cover_letter passando a descricao da vaga, titulo e empresa.

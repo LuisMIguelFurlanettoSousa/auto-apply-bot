@@ -10,6 +10,10 @@ import {
   registrarVagaVista,
   verificarVagaJaVista,
   atualizarScreenshot,
+  buscarRespostaCache,
+  buscarCandidatasCache,
+  salvarRespostaCache,
+  sanitizarPergunta,
 } from './database.js';
 import { log } from './logger.js';
 import { notificarCandidatura } from './notificacoes.js';
@@ -317,6 +321,52 @@ export const customToolDeclarations: FunctionDeclaration[] = [
       required: ['descricao_vaga', 'empresa', 'titulo_vaga'],
     },
   },
+  {
+    name: 'buscar_resposta_cache',
+    description:
+      'Busca no cache se essa pergunta de formulario ja foi respondida antes. Use ANTES de gerar uma resposta nova. Se retornar um cache hit, use a resposta cacheada (pode variar levemente a forma). Economiza tokens e garante consistencia.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        pergunta: {
+          type: Type.STRING,
+          description: 'Texto da pergunta/label do campo do formulario',
+        },
+        tipo_campo: {
+          type: Type.STRING,
+          description: 'Tipo do campo: textbox, numeric, dropdown, radio, date, textarea',
+        },
+      },
+      required: ['pergunta', 'tipo_campo'],
+    },
+  },
+  {
+    name: 'salvar_resposta_cache',
+    description:
+      'Salva uma resposta no cache para reutilizar em formularios futuros. Use APOS preencher um campo com uma resposta gerada. NAO salve: cover letters, respostas que mencionam o nome da empresa, ou campos de data especificos.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        pergunta: {
+          type: Type.STRING,
+          description: 'Texto da pergunta/label do campo',
+        },
+        tipo_campo: {
+          type: Type.STRING,
+          description: 'Tipo do campo: textbox, numeric, dropdown, radio, date, textarea',
+        },
+        resposta: {
+          type: Type.STRING,
+          description: 'Resposta que foi usada no campo',
+        },
+        empresa_atual: {
+          type: Type.STRING,
+          description: 'Nome da empresa da vaga atual (para validar se a resposta e generica o suficiente para cachear)',
+        },
+      },
+      required: ['pergunta', 'tipo_campo', 'resposta'],
+    },
+  },
 ];
 
 // ========== EXECUTOR DAS TOOLS ==========
@@ -532,6 +582,66 @@ export function criarExecutorDeTools(perfil: Perfil, geminiApiKey?: string, gemi
         } catch {
           return 'ERRO: Arquivo config/respostas.json nao encontrado.';
         }
+      }
+
+      case 'buscar_resposta_cache': {
+        const pergunta = args.pergunta as string;
+        const tipoCampo = args.tipo_campo as string;
+
+        // 1. Busca exact match / substring match
+        const cacheHit = buscarRespostaCache(pergunta, tipoCampo);
+        if (cacheHit) {
+          log('TOOL', `Cache HIT (exact): "${pergunta.substring(0, 50)}..." → "${cacheHit.resposta.substring(0, 50)}..." (usada ${cacheHit.vezes_usada}x)`);
+          return JSON.stringify({
+            encontrado: true,
+            metodo: 'exact',
+            resposta: cacheHit.resposta,
+            vezes_usada: cacheHit.vezes_usada,
+            instrucao: 'Use esta resposta. Pode variar levemente a forma de escrever mas mantenha o conteudo.',
+          });
+        }
+
+        // 2. Busca candidatas por palavras-chave para matching semântico
+        const candidatas = buscarCandidatasCache(pergunta);
+        if (candidatas.length > 0) {
+          log('TOOL', `Cache: ${candidatas.length} candidata(s) encontrada(s) para matching semantico`);
+          return JSON.stringify({
+            encontrado: false,
+            candidatas: candidatas.map(c => ({
+              pergunta_original: c.pergunta_sanitizada,
+              resposta: c.resposta,
+              tipo: c.tipo_campo,
+            })),
+            instrucao: 'Nenhum match exato. Verifique se alguma candidata e semanticamente equivalente. Se sim, reutilize a resposta (variando a forma). Se nao, gere uma resposta nova e salve no cache.',
+          });
+        }
+
+        log('TOOL', `Cache MISS: "${pergunta.substring(0, 50)}..."`);
+        return JSON.stringify({
+          encontrado: false,
+          candidatas: [],
+          instrucao: 'Nenhuma resposta no cache. Gere uma resposta nova e salve no cache apos preencher o campo.',
+        });
+      }
+
+      case 'salvar_resposta_cache': {
+        const pergunta = args.pergunta as string;
+        const tipoCampo = args.tipo_campo as string;
+        const resposta = args.resposta as string;
+        const empresaAtual = (args.empresa_atual as string) || '';
+
+        // Regra do AIHawk: não cachear respostas que mencionam o nome da empresa
+        if (empresaAtual && resposta.toLowerCase().includes(empresaAtual.toLowerCase())) {
+          log('TOOL', `Cache SKIP: resposta menciona "${empresaAtual}" (especifica demais para cachear)`);
+          return 'NAO_CACHEADO: Resposta menciona o nome da empresa e e especifica demais para reutilizar em outras vagas.';
+        }
+
+        const sucesso = salvarRespostaCache(pergunta, tipoCampo, resposta);
+        if (sucesso) {
+          log('TOOL', `Cache SAVE: "${sanitizarPergunta(pergunta).substring(0, 50)}..." → "${resposta.substring(0, 50)}..."`);
+          return 'CACHEADO: Resposta salva no cache para reutilizacao futura.';
+        }
+        return 'JA_EXISTE: Essa pergunta ja existe no cache.';
       }
 
       case 'gerar_cover_letter': {
