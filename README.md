@@ -12,7 +12,10 @@ O bot navega por portais de vagas (Gupy, Vagas.com, LinkedIn, Indeed), analisa c
 |---|---|
 | **AI Agent (Gemini)** | Usa Google Gemini como cérebro — entende vagas, preenche formulários, toma decisões |
 | **Playwright MCP** | Controla o Chrome real do usuário via CDP — sem logins, sem CAPTCHAs |
-| **Multi-Curriculum** | Seleciona automaticamente o currículo mais adequado para cada vaga |
+| **Tailored Resume** | Gera currículo personalizado por vaga via IA — destaca skills relevantes, converte HTML→PDF |
+| **Cover Letter** | Gera carta de apresentação personalizada por vaga com validação anti-fabricação |
+| **Answer Cache** | Cacheia respostas de formulário no SQLite — economiza tokens e acelera execuções futuras |
+| **Multi-Curriculum** | Fallback: seleciona entre currículos pré-prontos se o tailored falhar |
 | **Smart Scoring** | Pontua vagas de 1-10 antes de aplicar — só aplica em vagas compatíveis |
 | **Dry-Run Mode** | Testa todo o fluxo sem enviar candidaturas de verdade |
 | **Location Filter** | Filtra por localização e modelo de trabalho (remoto/híbrido/presencial) |
@@ -25,6 +28,7 @@ O bot navega por portais de vagas (Gupy, Vagas.com, LinkedIn, Indeed), analisa c
 | **File Logging** | Log completo de cada execução salvo em arquivo |
 | **Cron Scheduling** | Agende execuções automáticas diárias |
 | **Recovery** | Recupera o estado em caso de falha/interrupção |
+| **Sliding Window** | Gerencia contexto do Gemini descartando histórico antigo — evita estouro de tokens |
 | **Pre-defined Q&A** | Respostas base para perguntas comuns em formulários |
 | **Response Variation** | Varia respostas automaticamente para parecer humano |
 
@@ -41,9 +45,9 @@ O bot navega por portais de vagas (Gupy, Vagas.com, LinkedIn, Indeed), analisa c
 │ (Gemini) │ (HTTP)   │ (HTTPS)  │ (SMTP)         │
 ├──────────┴──────────┴──────────┴────────────────┤
 │                   tools.ts                       │
-│  pontuar_vaga | escolher_curriculo | screenshot  │
-│  registrar_candidatura | verificar_ja_aplicou    │
-│  registrar_vaga_vista | respostas_predefinidas   │
+│  pontuar_vaga | gerar_curriculo_tailored         │
+│  gerar_cover_letter | buscar_resposta_cache      │
+│  registrar_candidatura | salvar_screenshot       │
 ├─────────────────────────────────────────────────┤
 │              Playwright MCP                      │
 │        (browser automation via CDP)              │
@@ -68,7 +72,7 @@ O bot navega por portais de vagas (Gupy, Vagas.com, LinkedIn, Indeed), analisa c
 ### 2. Instalação
 
 ```bash
-git clone https://github.com/SEU_USUARIO/auto-apply-bot.git
+git clone https://github.com/LuisMIguelFurlanettoSousa/auto-apply-bot.git
 cd auto-apply-bot
 npm install
 ```
@@ -177,6 +181,35 @@ Score final entre 1-10. Só aplica se `score >= SCORE_MINIMO`.
 
 ---
 
+## 📄 Currículo Tailored + Cover Letter
+
+Diferente de outros bots que enviam o mesmo currículo para todas as vagas, o Auto Apply Bot **gera um currículo e carta de apresentação personalizados para cada vaga**:
+
+1. O agente lê a descrição completa da vaga
+2. Faz uma chamada separada ao Gemini com prompt ultra-restritivo
+3. O Gemini **reorganiza e reescreve** o currículo destacando skills relevantes
+4. **Validação anti-fabricação**: escaneia o HTML gerado buscando tecnologias que o candidato não possui — rejeita se encontrar
+5. Converte HTML → PDF via Chrome headless (`--print-to-pdf`)
+6. Cache por hash da descrição — vagas similares reutilizam o mesmo PDF
+
+A cover letter segue a mesma lógica: personalizada por vaga, máximo 150 palavras, sem clichês, com validação + retry se fabricar skills.
+
+Se a geração falhar, cai automaticamente nos currículos pré-prontos (fallback).
+
+---
+
+## 💾 Cache de Respostas
+
+Inspirado no AIHawk (29k stars), o bot cacheia respostas de formulário no SQLite:
+
+- **Primeira execução**: gera respostas via Gemini e salva no cache
+- **Execuções seguintes**: busca no cache antes de gerar — economiza tokens
+- **Matching**: exact match (sanitizado) + substring match para dropdowns
+- **Regra inteligente**: respostas que mencionam o nome da empresa não são cacheadas (são específicas demais)
+- Cover letters nunca são cacheadas (sempre personalizadas)
+
+---
+
 ## 📁 Estrutura do Projeto
 
 ```
@@ -184,8 +217,10 @@ auto-apply-bot/
 ├── src/
 │   ├── index.ts          # Entry point + orquestração
 │   ├── agente.ts         # Loop do agente Gemini
-│   ├── tools.ts          # Custom tools (scoring, CV, screenshot...)
-│   ├── database.ts       # SQLite (candidaturas, vagas vistas)
+│   ├── tools.ts          # Custom tools (scoring, CV, screenshot, cache...)
+│   ├── curriculo-tailored.ts  # Geração de currículo personalizado por vaga
+│   ├── cover-letter.ts   # Geração de carta de apresentação por vaga
+│   ├── database.ts       # SQLite (candidaturas, vagas vistas, cache)
 │   ├── dashboard.ts      # Dashboard web
 │   ├── mcp-client.ts     # Conexão Playwright MCP
 │   ├── logger.ts         # Log em arquivo
@@ -218,11 +253,13 @@ auto-apply-bot/
 ## 🛣️ Roadmap
 
 - [ ] Suporte a mais plataformas (Catho, Trampos, etc.)
-- [ ] Detector automático de CAPTCHA com fallback manual
-- [ ] Integração com Google Sheets para tracking
-- [ ] Multi-idioma (EN/ES)
-- [ ] Browser extension companion
-- [ ] Resume builder integrado com IA
+- [ ] CAPTCHA handling via Telegram (humano resolve, bot continua)
+- [ ] Blacklist de empresas/títulos
+- [ ] Mensagem automática para recrutadores
+- [ ] Multi-LLM (Gemini + Ollama local como fallback)
+- [ ] Anonimização de dados antes de enviar ao LLM
+- [ ] Docker support
+- [ ] Tracking de custo de tokens
 
 ---
 
