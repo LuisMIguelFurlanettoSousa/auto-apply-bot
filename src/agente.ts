@@ -1,4 +1,4 @@
-import { GoogleGenAI, mcpToTool, type Content, type Part } from '@google/genai';
+import { GoogleGenAI, mcpToTool, type Content, type Part, type GenerateContentConfig } from '@google/genai';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
 import path from 'path';
@@ -222,6 +222,34 @@ Quando terminar todos os sites ou atingir o limite diario, faca um resumo:
 `;
 }
 
+/**
+ * Monta o `config` da chamada `generateContent`.
+ *
+ * O agente despacha as function calls MANUALMENTE (ver loop em executarAgente),
+ * então o automatic function calling (AFC) do SDK precisa ficar DESLIGADO. Com o
+ * AFC ligado — o padrão quando há um objeto MCP na lista de tools — o
+ * @google/genai recusa misturar o objeto MCP (CallableTool) com
+ * functionDeclarations básicas no mesmo array `tools`, lançando "Automatic
+ * function calling with CallableTools (or MCP objects) and basic
+ * FunctionDeclarations is not yet supported. Incompatible tools found at
+ * tools[1]". Desligar o AFC faz o SDK apenas EXPOR as declarações ao modelo
+ * (inclusive as do MCP, convertidas por mcpToTool) e devolver os functionCalls
+ * para o nosso loop despachar — que é o comportamento desejado.
+ */
+export function construirConfigGeracao(
+  mcpClient: Client,
+  systemPrompt: string,
+): GenerateContentConfig {
+  return {
+    systemInstruction: systemPrompt,
+    automaticFunctionCalling: { disable: true },
+    tools: [
+      mcpToTool(mcpClient),
+      { functionDeclarations: customToolDeclarations },
+    ],
+  };
+}
+
 export async function executarAgente(
   mcpClient: Client,
   perfil: Perfil,
@@ -278,13 +306,7 @@ Lembre-se: use aguardar entre cada acao, verifique duplicatas, e varie as respos
       const response = await ai.models.generateContent({
         model: config.geminiModel,
         contents: history,
-        config: {
-          systemInstruction: systemPrompt,
-          tools: [
-            mcpToTool(mcpClient),
-            { functionDeclarations: customToolDeclarations },
-          ],
-        },
+        config: construirConfigGeracao(mcpClient, systemPrompt),
       });
 
       // Reset do contador — iteração bem sucedida
