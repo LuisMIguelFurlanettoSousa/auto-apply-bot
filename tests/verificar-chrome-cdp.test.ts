@@ -7,7 +7,10 @@ let servidor: Server | undefined;
 
 afterEach(async () => {
   // Derruba o servidor de teste entre casos, se algum tiver ficado de pé.
+  // closeAllConnections() é necessário para o caso "servidor que nunca responde":
+  // sem isso, close() ficaria pendurado esperando a conexão pendente encerrar.
   if (servidor) {
+    servidor.closeAllConnections?.();
     await new Promise<void>((r) => servidor!.close(() => r()));
     servidor = undefined;
   }
@@ -50,5 +53,32 @@ describe('verificarChromeCDP', () => {
     await expect(
       verificarChromeCDP(`http://127.0.0.1:${porta}`, 1000),
     ).rejects.toThrow(/remote-debugging-port/);
+  });
+
+  it('lanca erro de timeout quando o servidor aceita mas nao responde a tempo', async () => {
+    // Cenário: servidor que recebe a request e nunca responde (simula um Chrome/
+    // proxy que aceita o TCP mas trava em /json/version).
+    servidor = createServer(() => { /* nunca chama res.end */ });
+    const porta = await ouvir(servidor);
+
+    // Ação + Validação: o timeout curto dispara o AbortController e a mensagem
+    // deve deixar claro que foi TIMEOUT (nao uma recusa de conexao).
+    await expect(
+      verificarChromeCDP(`http://127.0.0.1:${porta}`, 200),
+    ).rejects.toThrow(/timeout/i);
+  });
+
+  it('lanca erro quando o CDP responde com status de erro (nao-2xx)', async () => {
+    // Cenário: algo escuta na porta mas devolve 500 em /json/version.
+    servidor = createServer((_req, res) => {
+      res.writeHead(500);
+      res.end();
+    });
+    const porta = await ouvir(servidor);
+
+    // Ação + Validação
+    await expect(
+      verificarChromeCDP(`http://127.0.0.1:${porta}`),
+    ).rejects.toThrow(/HTTP 500/);
   });
 });
