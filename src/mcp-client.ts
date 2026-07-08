@@ -26,9 +26,18 @@ export async function verificarChromeCDP(cdpEndpoint: string, timeoutMs = 3000):
   try {
     const resp = await fetch(url, { signal: ctrl.signal });
     ok = resp.ok;
-    if (!ok) motivo = `HTTP ${resp.status}`;
+    if (ok) {
+      // Nao usamos o corpo — cancela para liberar o socket (evita keep-alive pendurado).
+      await resp.body?.cancel();
+    } else {
+      motivo = `HTTP ${resp.status}`;
+    }
   } catch (e) {
-    motivo = e instanceof Error ? e.message : String(e);
+    // signal.aborted distingue TIMEOUT de recusa/erro de rede, de forma
+    // deterministica (independe do formato do erro do fetch/undici).
+    motivo = ctrl.signal.aborted
+      ? `timeout apos ${timeoutMs}ms`
+      : e instanceof Error ? e.message : String(e);
   } finally {
     clearTimeout(timer);
   }
