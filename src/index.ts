@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { conectarPlaywrightMCP, desconectarMCP } from './mcp-client.js';
+import { conectarPlaywrightMCP, desconectarMCP, verificarChromeCDP } from './mcp-client.js';
 import { inicializarBanco, fecharBanco, registrarExecucao, contarCandidaturasHoje, listarCandidaturas, obterEstatisticas } from './database.js';
 import { executarAgente } from './agente.js';
 import { iniciarDashboard, pararDashboard } from './dashboard.js';
@@ -39,7 +39,7 @@ function validarEnv(): AgenteConfig {
   return {
     geminiApiKey,
     geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-    cdpEndpoint: process.env.CDP_ENDPOINT || 'http://localhost:9222',
+    cdpEndpoint: process.env.CDP_ENDPOINT || 'http://127.0.0.1:9222',
     limiteDiario: parseInt(process.env.LIMITE_DIARIO || '10', 10),
     maxPorExecucao: parseInt(process.env.MAX_POR_EXECUCAO || '5', 10),
     delayMin: parseInt(process.env.DELAY_MIN || '2000', 10),
@@ -92,13 +92,17 @@ async function executarFluxoPrincipal(config: AgenteConfig): Promise<void> {
   // Inicia dashboard web
   iniciarDashboard(config.dashboardPort);
 
-  // Conecta ao Playwright MCP (que conecta ao Chrome)
+  // Conecta ao Playwright MCP (que conecta ao Chrome).
+  // Antes de subir o MCP, valida que o Chrome esta acessivel via CDP: o
+  // handshake do MCP conecta mesmo sem o Chrome no ar, entao sem essa checagem
+  // a falha so apareceria no meio do loop do agente, ja tendo gasto chamadas do
+  // LLM (ver verificarChromeCDP em mcp-client.ts).
   let mcpClient;
   try {
+    await verificarChromeCDP(config.cdpEndpoint);
     mcpClient = await conectarPlaywrightMCP(config.cdpEndpoint);
   } catch (error) {
-    log('ERRO', 'Nao foi possivel conectar ao Chrome.');
-    log('ERRO', 'Certifique-se de que o Chrome esta aberto com: google-chrome --remote-debugging-port=9222');
+    log('ERRO', error instanceof Error ? error.message : String(error));
     await notificarErro('Falha ao conectar ao Chrome. Verifique se o CDP esta ativo.');
     fecharBanco();
     process.exit(1);

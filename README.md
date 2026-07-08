@@ -140,7 +140,7 @@ npm start
 | Variável | Descrição | Padrão |
 |---|---|---|
 | `GEMINI_API_KEY` | Chave da API do Google Gemini | *obrigatório* |
-| `CDP_ENDPOINT` | Endpoint CDP do Chrome | `http://localhost:9222` |
+| `CDP_ENDPOINT` | Endpoint CDP do Chrome (use `127.0.0.1`, não `localhost`, p/ evitar `ECONNREFUSED ::1`) | `http://127.0.0.1:9222` |
 | `GEMINI_MODEL` | Modelo do Gemini (flash é ~16x mais barato) | `gemini-2.5-flash` |
 | `LIMITE_DIARIO` | Max candidaturas por dia | `10` |
 | `MAX_POR_EXECUCAO` | Teto de envios reais por execução (anti-rajada) | `5` |
