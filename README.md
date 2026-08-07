@@ -131,6 +131,27 @@ DRY_RUN=true npm start
 npm start
 ```
 
+### 🐳 Docker
+
+```bash
+# Clone o repositório
+git clone https://github.com/LuisMIguelFurlanettoSousa/auto-apply-bot.git
+cd auto-apply-bot
+
+# Copie e configure o .env
+cp .env.example .env
+nano .env
+
+# Copie os arquivos de configuração
+cp config/perfil.example.json config/perfil.json
+cp config/curriculos.example.json config/curriculos.json
+cp config/respostas.example.json config/respostas.json
+
+# Build e execute
+cd docker
+docker compose up
+```
+
 ---
 
 ## ⚙️ Configuração Detalhada
@@ -447,7 +468,7 @@ auto-apply-bot/
 - [x] ~~Mensagem automática para recrutadores~~
 - [x] ~~Multi-LLM (Gemini + Ollama local como fallback)~~
 - [x] ~~Anonimização de dados antes de enviar ao LLM~~
-- [ ] Docker support
+- [x] ~~Docker support~~
 - [x] ~~Tracking de custo de tokens~~
 
 ---
