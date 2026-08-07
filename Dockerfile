@@ -4,7 +4,6 @@ ARG GITHUB_REPO=LuisMIguelFurlanettoSousa/auto-apply-bot
 ARG GITHUB_REF=main
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
     make \
     g++ \
     curl \
