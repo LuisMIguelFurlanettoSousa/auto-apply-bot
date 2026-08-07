@@ -1,0 +1,17 @@
+services:
+  bot:
+    image: auto-apply-bot
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auto-apply-bot
+    network_mode: host
+    env_file:
+      - .env
+    volumes:
+      - ./config:/app/config:ro
+      - bot-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  bot-data:
